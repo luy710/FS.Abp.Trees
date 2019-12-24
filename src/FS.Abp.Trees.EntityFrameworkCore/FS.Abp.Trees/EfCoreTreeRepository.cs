@@ -1,76 +1,79 @@
-﻿using System;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using System;
 using System.Collections.Generic;
-using System.Text;
-using Volo.Abp.Domain.Repositories;
-using Volo.Abp.Domain.Entities;
-using Volo.Abp.Domain.Services;
-using System.Threading.Tasks;
 using System.Linq;
-using Volo.Abp.Linq;
-using Volo.Abp.DependencyInjection;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using Volo.Abp.Domain.Entities;
+using Volo.Abp.Domain.Repositories.EntityFrameworkCore;
+using Volo.Abp.EntityFrameworkCore;
 
 namespace FS.Abp.Trees
 {
-    public interface ITreeDomainService<TEntity> : IDomainService, ITransientDependency
-    where TEntity : class, ITree<TEntity>, IEntity<Guid>
-
+    public class EfCoreTreeRepository<TDbContext, TEntity> : EfCoreRepository<TDbContext, TEntity, Guid>,
+        ITreeRepository<TEntity> 
+        where TDbContext : IEfCoreDbContext
+        where TEntity : class, IEntity<Guid>, ITree<TEntity>
     {
-        Task CreateAsync(TEntity entity);
-        Task DeleteAsync(Guid id);
-        Task UpdateAsync(TEntity entity);
-        Task MoveAsync(Guid id, Guid? parentId);
-
-    }
-    public class TreeDomainService<TEntity> : DomainService, ITreeDomainService<TEntity>
-        where TEntity : class, ITree<TEntity>, IEntity<Guid>
-    {
-        protected IRepository<TEntity, Guid> EntityRepository { get; set; }
         protected TreeCodeDomainService TreeCodeDomainService { get; set; }
 
-        public TreeDomainService(
-            IRepository<TEntity, Guid> entityRepository,
-            TreeCodeDomainService treeCodeDomainService
-            )
+        public EfCoreTreeRepository(
+            IServiceProvider ServiceProvider,
+            IDbContextProvider<TDbContext> dbContextProvider)
+            : base(dbContextProvider)
         {
-            EntityRepository = entityRepository;
-            TreeCodeDomainService = treeCodeDomainService;
+            TreeCodeDomainService = ServiceProvider.GetRequiredService<TreeCodeDomainService>();
+        }
+        public override IQueryable<TEntity> WithDetails()
+        {
+            if (AbpEntityOptions.DefaultWithDetailsFunc == null)
+            {
+                return GetQueryable().Include(x => x.Children);
+            }
+
+            return AbpEntityOptions.DefaultWithDetailsFunc(GetQueryable().Include(x => x.Children));
         }
 
-
-        public async Task CreateAsync(TEntity entity)
+        public async override Task<TEntity> InsertAsync(TEntity entity, bool autoSave = false, CancellationToken cancellationToken = default)
         {
             entity.Code = await GetNextChildCodeAsync(entity.ParentId);
             await ValidateEntityAsync(entity);
-            await EntityRepository.InsertAsync(entity);
+            return await this.InsertAsync(entity, autoSave, cancellationToken);
         }
 
-        public async Task DeleteAsync(Guid id)
+        public async override Task<TEntity> UpdateAsync(TEntity entity, bool autoSave = false, CancellationToken cancellationToken = default)
+        {
+            await ValidateEntityAsync(entity);
+            return await this.UpdateAsync(entity, autoSave, cancellationToken);
+        }
+        public async override Task DeleteAsync(Guid id, bool autoSave = false, CancellationToken cancellationToken = default)
         {
             var children = await FindChildrenAsync(id, true);
 
             foreach (var child in children)
             {
-                await EntityRepository.DeleteAsync(child);
+                await this.DeleteAsync(child, autoSave, cancellationToken);
             }
 
-            await EntityRepository.DeleteAsync(id);
+            await this.DeleteAsync(id, autoSave, cancellationToken);
         }
 
-        public async Task MoveAsync(Guid id, Guid? parentId)
+        public async Task MoveAsync(TEntity entity, Guid? parentId, bool autoSave = false, CancellationToken cancellationToken = default)
         {
-            var entity = await EntityRepository.GetAsync(id);
             if (entity.ParentId == parentId)
             {
                 return;
             }
 
             //Should find children before Code change
-            var children = await FindChildrenAsync(id, true);
+            var children = await FindChildrenAsync(entity.Id, true);
 
-            //Store old code of OU
+            //Store old code of Tree
             var oldCode = entity.Code;
 
-            //Move OU
+            //Move Tree
             entity.Code = await GetNextChildCodeAsync(parentId);
             entity.ParentId = parentId;
 
@@ -80,19 +83,17 @@ namespace FS.Abp.Trees
             foreach (var child in children)
             {
                 child.Code = TreeCodeDomainService.AppendCode(entity.Code, TreeCodeDomainService.GetRelativeCode(child.Code, oldCode));
+                await this.UpdateAsync(child, autoSave, cancellationToken);
             }
+            await this.UpdateAsync(entity, autoSave, cancellationToken);
         }
 
-        public async Task UpdateAsync(TEntity entity)
-        {
-            await ValidateEntityAsync(entity);
-            await EntityRepository.UpdateAsync(entity);
-        }
+
 
         public async Task<TEntity> GetLastChildOrNullAsync(Guid? parentId)
         {
 
-            var children = await EntityRepository.Where(tree => tree.ParentId == parentId).ToListAsync();
+            var children = await this.Where(tree => tree.ParentId == parentId).ToListAsync();
             return children.OrderBy(c => c.Code).LastOrDefault();
         }
         public async Task<string> GetNextChildCodeAsync(Guid? parentId)
@@ -108,7 +109,7 @@ namespace FS.Abp.Trees
         }
         public async Task<string> GetCodeAsync(Guid id)
         {
-            return (await EntityRepository.GetAsync(id)).Code;
+            return (await this.GetAsync(id)).Code;
         }
         protected virtual async Task ValidateEntityAsync(TEntity entity)
         {
@@ -126,26 +127,18 @@ namespace FS.Abp.Trees
         {
             if (!recursive)
             {
-                return await EntityRepository.Where(x => x.ParentId == parentId).ToListAsync();
+                return await this.Where(x => x.ParentId == parentId).ToListAsync();
             }
 
             if (!parentId.HasValue)
             {
-                return await EntityRepository.ToListAsync();
+                return await this.ToListAsync();
             }
 
             var code = await GetCodeAsync(parentId.Value);
 
-            return await EntityRepository.Where(
+            return await this.Where(
                 ou => ou.Code.StartsWith(code) && ou.Id != parentId.Value).ToListAsync();
-        }
-    }
-    //move to core
-    public static class TreeDomainServiceEx
-    {
-        public static Task<List<T>> ToListAsync<T>(this IQueryable<T> query)
-        {
-            return Volo.Abp.Linq.DefaultAsyncQueryableExecuter.Instance.ToListAsync(query);
         }
     }
 }

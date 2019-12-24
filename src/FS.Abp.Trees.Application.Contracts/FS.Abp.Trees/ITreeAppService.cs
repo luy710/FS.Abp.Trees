@@ -12,7 +12,7 @@ namespace FS.Abp.Trees
     {
         Task<TGetOutputDto> CreateAsync(TCreateInput input);
         Task DeleteAsync(Guid id);
-        Task<TGetOutputDto> MoveTree(TMoveInput input);
+        Task<TGetOutputDto> MoveAsync(TMoveInput input);
         Task<TGetOutputDto> UpdateAsync(Guid id, TUpdateInput input);
     }
 }
