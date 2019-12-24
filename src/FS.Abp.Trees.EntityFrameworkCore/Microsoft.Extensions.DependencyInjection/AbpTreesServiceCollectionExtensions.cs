@@ -9,13 +9,13 @@ namespace Microsoft.Extensions.DependencyInjection
     public static class AbpTreesServiceCollectionExtensions
     {
         public static IServiceCollection AddTreeRepository<TDbContext>(
-            this IServiceCollection services, 
-            Action<IAbpDbContextRegistrationOptionsBuilder> optionsBuilder = null)
+            this IServiceCollection services)
             where TDbContext : AbpDbContext<TDbContext>
         {
-            var options = new AbpDbContextRegistrationOptions(typeof(TDbContext), services);
+            var options = new AbpTreesRepositoryRegistrationOptions(typeof(TDbContext), services);
 
-            optionsBuilder?.Invoke(options);
+            //TODO: Custom option action
+            //optionsBuilder?.Invoke(options);
 
             new EfCoreTreeRepositoryRegistrar(options).AddRepositories();
 

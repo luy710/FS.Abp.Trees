@@ -17,14 +17,33 @@ namespace FS.Abp.Trees
         where TDbContext : IEfCoreDbContext
         where TEntity : class, IEntity<Guid>, ITree<TEntity>
     {
-        protected TreeCodeDomainService TreeCodeDomainService { get; set; }
+        protected TreeCodeDomainService TreeCodeDomainService => LazyGetRequiredService(ref _treeCodeDomainService);
+        private TreeCodeDomainService _treeCodeDomainService;
+
+        protected readonly object ServiceProviderLock = new object();
+        protected TService LazyGetRequiredService<TService>(ref TService reference)
+            => LazyGetRequiredService(typeof(TService), ref reference);
+
+        protected TRef LazyGetRequiredService<TRef>(Type serviceType, ref TRef reference)
+        {
+            if (reference == null)
+            {
+                lock (ServiceProviderLock)
+                {
+                    if (reference == null)
+                    {
+                        reference = (TRef)ServiceProvider.GetRequiredService(serviceType);
+                    }
+                }
+            }
+
+            return reference;
+        }
 
         public EfCoreTreeRepository(
-            IServiceProvider ServiceProvider,
             IDbContextProvider<TDbContext> dbContextProvider)
             : base(dbContextProvider)
         {
-            TreeCodeDomainService = ServiceProvider.GetRequiredService<TreeCodeDomainService>();
         }
         public override IQueryable<TEntity> WithDetails()
         {
