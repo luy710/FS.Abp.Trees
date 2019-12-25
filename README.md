@@ -40,8 +40,8 @@ public partial class MoveInput :FS.Abp.Trees.IMoveInput {...}
 ```csharp
     public class EpsyCoreTreeAppService : FS.Abp.Trees.TreeAppService<
         FS.Client.Core.Unit,
+        FS.Client.Core.Dtos.UnitWithDetailDto,                                                                                           
         FS.Client.Core.Dtos.UnitDto,
-        FS.Client.Core.Dtos.UnitWithDetailDto,
         FS.Client.Core.Dtos.GetListInput,
         FS.Client.Core.Dtos.CreateInput,
         FS.Client.Core.Dtos.UpdateInput,
