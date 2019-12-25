@@ -45,6 +45,7 @@ namespace FS.Abp.Trees
             : base(dbContextProvider)
         {
         }
+
         public override IQueryable<TEntity> WithDetails()
         {
             if (AbpEntityOptions.DefaultWithDetailsFunc == null)
@@ -59,13 +60,13 @@ namespace FS.Abp.Trees
         {
             entity.Code = await GetNextChildCodeAsync(entity.ParentId);
             await ValidateEntityAsync(entity);
-            return await this.InsertAsync(entity, autoSave, cancellationToken);
+            return await base.InsertAsync(entity, autoSave, cancellationToken);
         }
 
         public async override Task<TEntity> UpdateAsync(TEntity entity, bool autoSave = false, CancellationToken cancellationToken = default)
         {
             await ValidateEntityAsync(entity);
-            return await this.UpdateAsync(entity, autoSave, cancellationToken);
+            return await base.UpdateAsync(entity, autoSave, cancellationToken);
         }
         public async override Task DeleteAsync(Guid id, bool autoSave = false, CancellationToken cancellationToken = default)
         {
@@ -73,10 +74,10 @@ namespace FS.Abp.Trees
 
             foreach (var child in children)
             {
-                await this.DeleteAsync(child, autoSave, cancellationToken);
+                await base.DeleteAsync(child, autoSave, cancellationToken);
             }
 
-            await this.DeleteAsync(id, autoSave, cancellationToken);
+            await base.DeleteAsync(id, autoSave, cancellationToken);
         }
 
         public async Task MoveAsync(TEntity entity, Guid? parentId, bool autoSave = false, CancellationToken cancellationToken = default)
@@ -102,9 +103,9 @@ namespace FS.Abp.Trees
             foreach (var child in children)
             {
                 child.Code = TreeCodeDomainService.AppendCode(entity.Code, TreeCodeDomainService.GetRelativeCode(child.Code, oldCode));
-                await this.UpdateAsync(child, autoSave, cancellationToken);
+                await base.UpdateAsync(child, autoSave, cancellationToken);
             }
-            await this.UpdateAsync(entity, autoSave, cancellationToken);
+            await base.UpdateAsync(entity, autoSave, cancellationToken);
         }
 
 
@@ -128,7 +129,7 @@ namespace FS.Abp.Trees
         }
         public async Task<string> GetCodeAsync(Guid id)
         {
-            return (await this.GetAsync(id)).Code;
+            return (await base.GetAsync(id)).Code;
         }
         protected virtual async Task ValidateEntityAsync(TEntity entity)
         {
