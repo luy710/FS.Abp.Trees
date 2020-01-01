@@ -14,7 +14,7 @@ namespace FS.Abp.Trees
 {
     public class TreeAppService<TEntity, TGetOutputDto, TGetListOutputDto, TGetListInput, TCreateInput, TUpdateInput, TMoveInput>
         : CrudAppService<TEntity, TGetOutputDto, TGetListOutputDto, Guid, TGetListInput, TCreateInput, TUpdateInput>,
-        ITreeAppService<TGetOutputDto, TCreateInput, TUpdateInput, TMoveInput> where TEntity : class, ITree<TEntity>, IEntity<Guid>, new()
+        ITreeAppService<TGetOutputDto, TGetListOutputDto, TGetListInput, TCreateInput, TUpdateInput, TMoveInput> where TEntity : class, ITree<TEntity>, IEntity<Guid>, new()
         where TGetOutputDto : ITreeDto
         where TGetListOutputDto : ITreeDto
         where TGetListInput : IGetListInput
@@ -47,5 +47,6 @@ namespace FS.Abp.Trees
         {
             await CheckPolicyAsync(MovePolicyName);
         }
+
     }
 }
