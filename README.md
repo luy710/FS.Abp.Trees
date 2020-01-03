@@ -36,9 +36,9 @@ public partial class CreateInput :FS.Abp.Trees.ICreateInput {...}
 public partial class UpdateInput :FS.Abp.Trees.IUpdateInput {...}
 public partial class MoveInput :FS.Abp.Trees.IMoveInput {...}
 ```
-4.Client Application module add an ApplicationService
+4.Client Application module add an ApplicationService and base on [TreeAppService](https://github.com/yinchang0626/FS.Abp.Trees/blob/master/src/FS.Abp.Trees.Application/FS.Abp.Trees/TreeAppService.cs)
 ```csharp
-    public class EpsyCoreTreeAppService : FS.Abp.Trees.TreeAppService<
+    public class ClientTreeAppService : FS.Abp.Trees.TreeAppService<
         FS.Client.Core.Unit,
         FS.Client.Core.Dtos.UnitWithDetailDto,                                                                                           
         FS.Client.Core.Dtos.UnitDto,
